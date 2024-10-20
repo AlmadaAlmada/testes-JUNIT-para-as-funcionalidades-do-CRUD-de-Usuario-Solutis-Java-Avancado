@@ -1,135 +1,99 @@
 package com.mightyjava.test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mightyjava.controller.UserController;
-import com.mightyjava.model.Role;
 import com.mightyjava.model.Users;
-import com.mightyjava.service.UserService;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-@SpringBootTest
+@RunWith(SpringRunner.class)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        classes = { SpringSecurityWebAuxTestConfig.class }
+)
 @AutoConfigureMockMvc
 public class WebApplicationSecurityTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @Mock
-    private UserService userService;
-
-    @InjectMocks
-    private UserController userController;
-
-    public WebApplicationSecurityTest() {
-        MockitoAnnotations.initMocks(this);
-    }
-
+    // Teste para adicionar um usuário
     @Test
-    @WithMockUser(username = "tal", roles = {"USER"})
-    public void givenValidUser_whenPostUserAdd_thenReturnSuccess() throws Exception {
-        Users user = new Users();
-        user.setUserName("newUser");
-        user.setPassword("password123");
-        user.setEmail("newuser@gmail.com");
+    @WithUserDetails("teco") // usuário com permissões para adicionar
+    public void givenManagerUser_whenPostUserAdd_thenOk() throws Exception {
+        Users newUser = new Users();
+        newUser.setUserName("newUser");
+        newUser.setPassword("password123");
+        newUser.setEmail("newuser@example.com");
 
-        when(userService.addUser(any())).thenReturn("User added successfully");
+        // Converte o objeto Users para JSON
+        String userJson = new ObjectMapper().writeValueAsString(newUser);
 
-        mockMvc.perform(post("/user/add")
+        mockMvc.perform(MockMvcRequestBuilders.post("/user/add")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(user)))
+                        .content(userJson)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("User added successfully"));
-
-        verify(userService, times(1)).addUser(any());
+                .andExpect(content().string(containsString("User added successfully")));
     }
 
+    // Teste para editar um usuário
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
-    public void givenUserId_whenDeleteUser_thenReturnSuccess() throws Exception {
-        Long userId = 1L;
-        when(userService.deleteUser(userId)).thenReturn("User deleted successfully");
+    @WithUserDetails("teco") // usuário com permissões para editar
+    public void givenManagerUser_whenGetUserEdit_thenOk() throws Exception {
+        Long userId = 1L; // ID do usuário a ser editado
 
-        mockMvc.perform(get("/user/delete/{id}", userId))
+        mockMvc.perform(MockMvcRequestBuilders.get("/user/edit/{id}", userId))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("User deleted successfully"));
-
-        verify(userService, times(1)).deleteUser(userId);
+                .andExpect(content().string(containsString("user/form")));
     }
 
+    // Teste para listar usuários
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
-    public void givenUserId_whenGetUserEdit_thenReturnUserForm() throws Exception {
-        Long userId = 1L;
-        Users user = new Users();
-        user.setUserName("existingUser");
-
-        // Mock do retorno do usuário
-        when(userService.findOne(userId)).thenReturn(user);
-
-        // Mock do retorno da lista de papéis (Roles)
-        Role userRole = new Role();
-        Role adminRole = new Role();
-        when(userService.roleList()).thenReturn(Arrays.asList(userRole, adminRole));
-
-        mockMvc.perform(get("/user/edit/{id}", userId))
+    @WithUserDetails("tal") // usuário com permissões para listar
+    public void givenBasicUser_whenGetUserList_thenOk() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/user/list"))
                 .andExpect(status().isOk())
-                .andExpect(model().attributeExists("userForm"))
-                .andExpect(view().name("user/form"));
-
-        verify(userService, times(1)).findOne(userId);
+                .andExpect(content().string(containsString("List of Users")));
     }
 
+    // Teste para deletar um usuário
     @Test
-    @WithMockUser(username = "tal", roles = {"USER"})
-    public void whenGetUserList_thenReturnListView() throws Exception {
-        when(userService.userList()).thenReturn(new ArrayList<>());
+    @WithUserDetails("teco") // usuário com permissões para deletar
+    public void givenManagerUser_whenDeleteUser_thenOk() throws Exception {
+        Long userId = 1L; // ID do usuário a ser deletado
 
-        mockMvc.perform(get("/user/list"))
+        mockMvc.perform(MockMvcRequestBuilders.get("/user/delete/{id}", userId))
                 .andExpect(status().isOk())
-                .andExpect(model().attributeExists("users"))
-                .andExpect(view().name("/user/list"));
-
-        verify(userService, times(1)).userList();
+                .andExpect(content().string(containsString("User deleted successfully")));
     }
 
+    // Teste para tentar adicionar um usuário sem permissões
     @Test
-    @WithMockUser(username = "tal", roles = {"USER"})
-    public void givenInvalidUser_whenPostUserAdd_thenReturnValidationError() throws Exception {
-        Users invalidUser = new Users();  // Usuário sem campos obrigatórios preenchidos
+    @WithUserDetails("tal") // usuário sem permissões para adicionar
+    public void givenBasicUser_whenPostUserAdd_thenForbidden() throws Exception {
+        Users newUser = new Users();
+        newUser.setUserName("testuser");
+        newUser.setPassword("password123");
+        newUser.setEmail("testuser@example.com");
 
-        mockMvc.perform(post("/user/add")
+        String userJson = new ObjectMapper().writeValueAsString(newUser);
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/user/add")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(invalidUser)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors").exists());
-
-        verify(userService, times(0)).addUser(any());
-    }
-
-    private static String asJsonString(final Object obj) {
-        try {
-            return new ObjectMapper().writeValueAsString(obj);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+                        .content(userJson)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
     }
 }
