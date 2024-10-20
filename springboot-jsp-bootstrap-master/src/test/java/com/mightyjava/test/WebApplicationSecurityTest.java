@@ -28,16 +28,16 @@ public class WebApplicationSecurityTest {
     @Autowired
     private MockMvc mockMvc;
 
-    // Teste para adicionar um usuário
+
     @Test
-    @WithUserDetails("teco") // usuário com permissões para adicionar
+    @WithUserDetails("teco") 
     public void givenManagerUser_whenPostUserAdd_thenOk() throws Exception {
         Users newUser = new Users();
         newUser.setUserName("newUser");
         newUser.setPassword("password123");
         newUser.setEmail("newuser@example.com");
 
-        // Converte o objeto Users para JSON
+            
         String userJson = new ObjectMapper().writeValueAsString(newUser);
 
         mockMvc.perform(MockMvcRequestBuilders.post("/user/add")
@@ -48,40 +48,39 @@ public class WebApplicationSecurityTest {
                 .andExpect(content().string(containsString("User added successfully")));
     }
 
-    // Teste para editar um usuário
+
     @Test
-    @WithUserDetails("teco") // usuário com permissões para editar
+    @WithUserDetails("teco") 
     public void givenManagerUser_whenGetUserEdit_thenOk() throws Exception {
-        Long userId = 1L; // ID do usuário a ser editado
+        Long userId = 1L; 
 
         mockMvc.perform(MockMvcRequestBuilders.get("/user/edit/{id}", userId))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("user/form")));
     }
 
-    // Teste para listar usuários
     @Test
-    @WithUserDetails("tal") // usuário com permissões para listar
+    @WithUserDetails("tal") 
     public void givenBasicUser_whenGetUserList_thenOk() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.get("/user/list"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("List of Users")));
     }
 
-    // Teste para deletar um usuário
+
     @Test
-    @WithUserDetails("teco") // usuário com permissões para deletar
+    @WithUserDetails("teco") 
     public void givenManagerUser_whenDeleteUser_thenOk() throws Exception {
-        Long userId = 1L; // ID do usuário a ser deletado
+        Long userId = 1L; 
 
         mockMvc.perform(MockMvcRequestBuilders.get("/user/delete/{id}", userId))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("User deleted successfully")));
     }
 
-    // Teste para tentar adicionar um usuário sem permissões
+ 
     @Test
-    @WithUserDetails("tal") // usuário sem permissões para adicionar
+    @WithUserDetails("tal") 
     public void givenBasicUser_whenPostUserAdd_thenForbidden() throws Exception {
         Users newUser = new Users();
         newUser.setUserName("testuser");
